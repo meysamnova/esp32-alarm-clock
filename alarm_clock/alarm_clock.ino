@@ -38,7 +38,7 @@ const int ALARM_FREQ_HIGH = 3000;
 // ---------- Alarm time (you can change it on the device) ----------
 int  alarmHour = 6;
 int  alarmMin  = 30;
-bool alarmOn   = true;
+bool alarmOn   = false;    // starts OFF; turn it on in the ON/OFF step
 
 // ---------- Temperature calibration ----------
 // Adjust until the reading matches a room thermometer
@@ -55,7 +55,7 @@ enum Mode { NORMAL, SET_HOUR, SET_MIN, SET_ONOFF };
 Mode mode = NORMAL;
 
 bool     ringing     = false;
-time_t   snoozeUntil = 0;
+time_t   snoozeUntil = 0;      // 0 = no snooze running
 int      firedKey    = -1;     // day+minute the alarm last fired or was dismissed
 uint32_t lastToggle  = 0;
 bool     toneHigh    = false;
@@ -126,10 +126,10 @@ void showMessage(const char* line1, const char* line2 = "") {
   display.display();
 }
 
-// Ringing screen: WAKE UP! in the yellow band, the alarm time in the blue band
-void drawRinging() {
+// Ringing screen: WAKE UP! in the yellow band, the time this ring was scheduled for in the blue band
+void drawRinging(int hour, int minute) {
   char hm[6];
-  snprintf(hm, sizeof hm, "%02d:%02d", alarmHour, alarmMin);
+  snprintf(hm, sizeof hm, "%02d:%02d", hour, minute);
 
   display.clearDisplay();
 
@@ -176,14 +176,24 @@ void drawClock(const struct tm &t) {
     display.setCursor((128 - (int)strlen(line) * 6) / 2, 52);
     display.print(line);
   } else {
-    // Blue band: alarm time. The field being set blinks.
+    // Blue band: alarm time, or the snooze time while a snooze is running
+    int shownHour = alarmHour;
+    int shownMin  = alarmMin;
+    if (snoozeUntil) {
+      struct tm st;
+      time_t s = snoozeUntil;
+      localtime_r(&s, &st);
+      shownHour = st.tm_hour;
+      shownMin  = st.tm_min;
+    }
+
     bool show = ((millis() / 400) % 2) == 0;   // on for 400 ms, off for 400 ms
     const int y  = 26;
     const int x0 = 10;                          // "HH:MM OFF" is centered at this x
 
     char hh[3], mm[3];
-    snprintf(hh, sizeof hh, "%02d", alarmHour);
-    snprintf(mm, sizeof mm, "%02d", alarmMin);
+    snprintf(hh, sizeof hh, "%02d", shownHour);
+    snprintf(mm, sizeof mm, "%02d", shownMin);
 
     display.setTextSize(2);
 
@@ -208,19 +218,6 @@ void drawClock(const struct tm &t) {
   display.display();
 }
 
-// ---------- Alarm state ----------
-void startRinging() {
-  ringing = true;
-  lastToggle = 0;
-  drawRinging();
-}
-
-void stopRinging() {
-  ringing = false;
-  silenceBuzzer();
-  display.invertDisplay(false);
-}
-
 // ---------- WiFi ----------
 void connectWiFi() {
   WiFi.mode(WIFI_STA);
@@ -237,6 +234,19 @@ void connectWiFi() {
       start = millis();
     }
   }
+}
+
+// ---------- Alarm state ----------
+void startRinging(int hour, int minute) {
+  ringing = true;
+  lastToggle = 0;
+  drawRinging(hour, minute);
+}
+
+void stopRinging() {
+  ringing = false;
+  silenceBuzzer();
+  display.invertDisplay(false);
 }
 
 // ---------- Setup ----------
@@ -293,9 +303,10 @@ void loop() {
     }
   }
   if (pressed(upBtn)) {
-    if (ringing) {                        // UP while ringing = stop
+    if (ringing) {                        // UP while ringing = stop and turn the alarm off
       stopRinging();
       snoozeUntil = 0;
+      alarmOn = false;
     } else if (mode == SET_HOUR) {
       alarmHour = (alarmHour + 1) % 24;
     } else if (mode == SET_MIN) {
@@ -310,13 +321,13 @@ void loop() {
       && t.tm_hour == alarmHour && t.tm_min == alarmMin
       && t.tm_sec < 10 && nowKey != firedKey) {
     firedKey = nowKey;
-    startRinging();
+    startRinging(alarmHour, alarmMin);
   }
 
-  // Snooze finished
+  // Snooze finished: ring again and show the snooze time, e.g. 15:05
   if (snoozeUntil && time(nullptr) >= snoozeUntil) {
     snoozeUntil = 0;
-    startRinging();
+    startRinging(t.tm_hour, t.tm_min);
   }
 
   // Ringing: siren and screen flash
@@ -328,7 +339,7 @@ void loop() {
       if (!BRIDGE_DRIVE) tone(BUZZER_A, toneHigh ? ALARM_FREQ_HIGH : ALARM_FREQ_LOW);
     }
     if (BRIDGE_DRIVE) playBridged(toneHigh ? ALARM_FREQ_HIGH : ALARM_FREQ_LOW, 20);
-    return;
+    return;                               // no redraw while ringing, so the sound stays smooth
   }
 
   // Redraw: 5 times a second on the clock, 10 times a second while setting (for the blink)

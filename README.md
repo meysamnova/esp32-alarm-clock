@@ -78,9 +78,11 @@ Reversing the left and right legs can damage the sensor. Keep it a few centimete
 | Button | Clock screen | Setting the alarm | While the alarm rings |
 |---|---|---|---|
 | MODE | Starts setting: hour → minute → ON/OFF → back to clock | Next step | Snooze for 5 minutes |
-| UP | Nothing | +1 hour, +1 minute, or toggle ON/OFF, depending on the step | Stop the alarm |
+| UP | Nothing | +1 hour, +1 minute, or toggle ON/OFF, depending on the step | Stop the alarm and turn it off |
 
 The field being set blinks.
+
+The alarm starts OFF. Turn it on in the ON/OFF step. While a snooze is running, the set screens show the snooze time. A snooze ring shows the time it was scheduled for, such as 15:05. The first ring shows the alarm time.
 
 The alarm rings once a day at the set time. When you finish setting, the current minute is treated as already handled, so setting the alarm to the current minute won't make it ring immediately.
 
