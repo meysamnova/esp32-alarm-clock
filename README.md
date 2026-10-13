@@ -2,6 +2,8 @@
 
 A desk alarm clock built on an ESP32. It shows the current time (synced over WiFi), the room temperature from an LM35DZ sensor, and an alarm that flashes the screen and sounds a passive piezo buzzer.
 
+<img width="941" height="1672" alt="ESP32 Neon Alarm Clock Project" src="https://github.com/user-attachments/assets/a2b04536-bcb2-4062-b2b3-1f8474357a8f" />
+
 ## Features
 
 - Digital clock with hours, minutes, seconds and date, synced over NTP (Tehran time, UTC+3:30)
